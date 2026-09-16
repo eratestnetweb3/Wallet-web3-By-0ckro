@@ -43,9 +43,11 @@ Alias npm tetap dapat dipakai jika environment mengarahkan `npm` ke package mana
 
 ## Security note
 
-Aegis dirancang **non-custodial**. UI tidak menyediakan input recovery phrase, private key, maupun fake recovery system. State wallet hanya berupa status UI dan public address demo di Zustand memory; tidak ada Zustand persist, localStorage secret, ataupun server-side credential.
+Aegis dirancang **non-custodial**. UI tidak menyediakan input recovery phrase, private key, maupun fake recovery system. State wallet berada di Zustand memory; tidak ada Zustand persist, localStorage secret, ataupun server-side credential.
 
-Pada integrasi nyata, connection flow perlu dihubungkan ke provider EIP-1193 (MetaMask/Rabby/WalletConnect), menambahkan listener `accountsChanged` dan `chainChanged`, serta memindahkan transaksi ke `eth_estimateGas`, `eth_sendTransaction`, dan receipt watcher. Seluruh signature tetap harus terjadi pada wallet eksternal.
+Versi ini telah memiliki integrasi nyata untuk browser wallet EIP-1193 melalui `viem`. MetaMask dan Rabby dapat digunakan langsung jika extension tersedia. Aplikasi membaca address, chain, native balance, mendukung switch network, mendengarkan `accountsChanged`/`chainChanged`, melakukan estimasi gas, memvalidasi saldo, lalu memanggil `eth_sendTransaction`. Signature dan approval tetap sepenuhnya terjadi di wallet eksternal.
+
+Connection flow saat ini sudah terhubung ke provider EIP-1193 browser (MetaMask/Rabby), dengan listener `accountsChanged` dan `chainChanged`. Send flow memakai `eth_estimateGas`, validasi saldo plus fee, `eth_sendTransaction`, dan receipt watcher untuk status confirmed/reverted. Seluruh signature tetap terjadi pada wallet eksternal.
 
 ## Wallet connection flow
 
@@ -56,7 +58,13 @@ Pada integrasi nyata, connection flow perlu dihubungkan ke provider EIP-1193 (Me
 5. Wallet eksternal membuka confirmation screen.
 6. Aplikasi memantau pending/success/failed receipt dan menampilkan explorer link.
 
-UI pada versi ini menggunakan demo-safe state agar dapat dipreview tanpa wallet extension. Jangan gunakan dana utama saat pengembangan; gunakan Sepolia atau testnet lain.
+Jika tidak ada extension, UI tetap dapat dipreview dalam mode demo-safe, tetapi koneksi dan transaksi nyata akan menampilkan error yang aman. Jangan gunakan dana utama saat pengembangan; gunakan Sepolia atau testnet lain.
+
+## WalletConnect dan data portfolio lengkap
+
+WalletConnect membutuhkan `VITE_WALLETCONNECT_PROJECT_ID` dari dashboard WalletConnect. Project ID tersebut bukan private key dan aman digunakan sebagai konfigurasi frontend, tetapi harus dibuat oleh pemilik aplikasi dan dibatasi sesuai domain deployment.
+
+Saldo token ERC-20, harga USD, NFT, dan portfolio multi-chain membutuhkan provider data seperti Alchemy, Moralis, Covalent, Zerion, atau Thirdweb. Pilih satu provider, simpan API key hanya di server/proxy, dan jangan menaruh secret provider di source code atau localStorage. RPC publik yang ada saat ini cocok untuk demo dan testnet terbatas, bukan SLA production.
 
 ## Testnet guidance
 
