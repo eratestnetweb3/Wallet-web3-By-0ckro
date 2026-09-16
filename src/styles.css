@@ -15,3 +15,5 @@
   .bottom-nav{height:68px;max-width:430px;left:50%;right:auto;width:100%;transform:translateX(-50%);gap:0;justify-content:space-around;padding-bottom:env(safe-area-inset-bottom);background:#f9faffee;backdrop-filter:blur(18px)}.bottom-nav button{font-size:18px}.bottom-nav button span{font-size:9px}
   .notice{bottom:82px;font-size:11px}.panel{border-radius:16px;padding:18px}.onboarding{margin-top:10px}.form-row{display:grid;grid-template-columns:1fr}.form-row button{height:42px}.action-card{margin-top:10px}.chain-detail-row{font-size:12px}
 }
+
+.history-panel{margin-top:16px}.history-panel h2{margin:0}.empty-history{font-size:12px;margin:18px 0 0}.history-row{display:grid;grid-template-columns:30px 1fr 24px;align-items:center;gap:10px;padding:13px 0;border-top:1px solid #edf0f5;margin-top:12px}.history-dot{display:grid;place-items:center;width:26px;height:26px;border-radius:9px;background:#eef0ff;color:#4159d6}.history-row div{display:flex;flex-direction:column;gap:3px}.history-row strong{font-size:12px}.history-row small{font:10px 'DM Mono';color:#8b94a5}.history-row a{color:#4159d6;text-decoration:none}
