@@ -84,3 +84,7 @@ The current full-stack build includes a server-side Alchemy proxy for native bal
 The **Swap / Bridge** route uses LI.FI to request a route and transaction request. Aegis never signs automatically: the final calldata, destination, amount, slippage, and gas are passed to the external wallet for explicit review and confirmation. LI.FI may be rate-limited or return no route, in which case the UI preserves the safe fallback state.
 
 Credential validation is covered by `server/integrations.credentials.test.ts`, and provider router validation is covered by `server/routers.wallet.test.ts`. Never place an Alchemy key, seed phrase, or private key in client source, localStorage, or chat.
+
+## GitHub Pages deployment
+
+The `aegis-wallet-integration` branch includes `.github/workflows/deploy-pages.yml` and builds a static SPA with the repository base path. To publish it at `https://eratestnetweb3.github.io/Wallet-web3-By-0ckro/`, a repository administrator must open **Settings → Pages → Build and deployment → Source → GitHub Actions** once. The workflow build is already validated. GitHub Pages cannot run the server-side Alchemy proxy; the browser uses public RPC fallback, while server-side indexer features remain available through the full-stack preview/deployment.
