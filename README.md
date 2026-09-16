@@ -76,3 +76,11 @@ Gunakan Sepolia untuk pengujian awal. Pastikan network yang dipilih, chain ID, r
 ## Catatan status
 
 Versi ini adalah polished frontend prototype. Belum production-ready dan belum diuji untuk transaksi live di testnet. Integrasi provider, token indexer/RPC, gas oracle, receipt watcher, dan contract simulation harus ditambahkan sebelum penggunaan nyata.
+
+## Production integrations added
+
+The current full-stack build includes a server-side Alchemy proxy for native balances, ERC-20 token discovery, NFT ownership, and asset transfers. The Alchemy key is never bundled into the browser. WalletConnect QR/mobile sessions are available from **DApp connect** using `VITE_WALLETCONNECT_PROJECT_ID`; injected MetaMask/Rabby remains supported as the primary desktop path.
+
+The **Swap / Bridge** route uses LI.FI to request a route and transaction request. Aegis never signs automatically: the final calldata, destination, amount, slippage, and gas are passed to the external wallet for explicit review and confirmation. LI.FI may be rate-limited or return no route, in which case the UI preserves the safe fallback state.
+
+Credential validation is covered by `server/integrations.credentials.test.ts`, and provider router validation is covered by `server/routers.wallet.test.ts`. Never place an Alchemy key, seed phrase, or private key in client source, localStorage, or chat.

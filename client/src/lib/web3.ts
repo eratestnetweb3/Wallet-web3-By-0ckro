@@ -1,3 +1,4 @@
+import EthereumProvider from "@walletconnect/ethereum-provider";
 import {
   createPublicClient,
   createWalletClient,
@@ -39,11 +40,10 @@ export type Eip1193Provider = {
   removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
 };
 
-declare global {
-  interface Window {
-    ethereum?: Eip1193Provider;
-  }
-}
+declare global { interface Window { ethereum?: Eip1193Provider; } }
+
+let walletConnectProvider: Eip1193Provider | null = null;
+let walletConnectInstance: Awaited<ReturnType<typeof EthereumProvider.init>> | null = null;
 
 export const getInjectedProvider = () => window.ethereum;
 export const getChainById = (chainId: number) => supportedChains.find((item) => item.chain.id === chainId) ?? supportedChains[0];
@@ -52,15 +52,10 @@ export const getChainByKey = (key: string) => supportedChains.find((item) => ite
 export function createInjectedClients(chain: SupportedChain) {
   const provider = getInjectedProvider();
   if (!provider) throw new Error("No EIP-1193 wallet detected. Install MetaMask or Rabby first.");
-  return {
-    walletClient: createWalletClient({ chain: chain.chain, transport: custom(provider) }),
-    publicClient: createPublicClient({ chain: chain.chain, transport: http(chain.rpcUrl) }),
-  };
+  return { walletClient: createWalletClient({ chain: chain.chain, transport: custom(provider) }), publicClient: createPublicClient({ chain: chain.chain, transport: http(chain.rpcUrl) }) };
 }
 
-export function createReadClient(chain: SupportedChain): PublicClient {
-  return createPublicClient({ chain: chain.chain, transport: http(chain.rpcUrl) });
-}
+export function createReadClient(chain: SupportedChain): PublicClient { return createPublicClient({ chain: chain.chain, transport: http(chain.rpcUrl) }); }
 
 export async function connectInjectedWallet(chain: SupportedChain) {
   const provider = getInjectedProvider();
@@ -71,6 +66,28 @@ export async function connectInjectedWallet(chain: SupportedChain) {
   return { address: accounts[0], chainId: currentChainId, walletClient };
 }
 
+export async function connectWalletConnect(chain: SupportedChain) {
+  const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined;
+  if (!projectId) throw new Error("WalletConnect Project ID is not configured.");
+  walletConnectInstance = await EthereumProvider.init({
+    projectId,
+    chains: [chain.chain.id],
+    optionalChains: supportedChains.map((item) => item.chain.id),
+    showQrModal: true,
+    metadata: { name: "Aegis Wallet", description: "Secure finance workspace", url: window.location.origin, icons: [] },
+  });
+  await walletConnectInstance.connect();
+  walletConnectProvider = walletConnectInstance as unknown as Eip1193Provider;
+  const accounts = await walletConnectProvider.request({ method: "eth_accounts" }) as string[];
+  const rawChain = await walletConnectProvider.request({ method: "eth_chainId" });
+  const chainId = Number.parseInt(String(rawChain), 16);
+  const active = getChainById(chainId);
+  const walletClient = createWalletClient({ chain: active.chain, transport: custom(walletConnectProvider) });
+  return { address: accounts[0] as `0x${string}`, chainId, walletClient, provider: walletConnectProvider };
+}
+
+export async function disconnectWalletConnect() { await walletConnectInstance?.disconnect(); walletConnectInstance = null; walletConnectProvider = null; }
+
 export async function switchInjectedChain(chain: SupportedChain) {
   const provider = getInjectedProvider();
   if (!provider) throw new Error("No EIP-1193 wallet detected.");
@@ -78,26 +95,12 @@ export async function switchInjectedChain(chain: SupportedChain) {
   await walletClient.switchChain({ id: chain.chain.id });
 }
 
-export async function readNativeBalance(address: `0x${string}`, chain: SupportedChain) {
-  const client = createReadClient(chain);
-  const balance = await client.getBalance({ address });
-  return formatEther(balance);
-}
+export async function readNativeBalance(address: `0x${string}`, chain: SupportedChain) { const client = createReadClient(chain); const balance = await client.getBalance({ address }); return formatEther(balance); }
 
-export async function estimateAndSendNative(
-  walletClient: WalletClient,
-  publicClient: PublicClient,
-  account: `0x${string}`,
-  recipient: string,
-  amount: string,
-): Promise<Hash> {
+export async function estimateAndSendNative(walletClient: WalletClient, publicClient: PublicClient, account: `0x${string}`, recipient: string, amount: string): Promise<Hash> {
   if (!isAddress(recipient)) throw new Error("Recipient address is invalid.");
   if (!amount || Number(amount) <= 0) throw new Error("Amount must be greater than zero.");
-  const value = parseEther(amount);
-  const gas = await publicClient.estimateGas({ account, to: recipient as `0x${string}`, value });
-  const gasPrice = await publicClient.getGasPrice();
-  const fee = gas * gasPrice;
-  const balance = await publicClient.getBalance({ address: account });
+  const value = parseEther(amount); const gas = await publicClient.estimateGas({ account, to: recipient as `0x${string}`, value }); const gasPrice = await publicClient.getGasPrice(); const fee = gas * gasPrice; const balance = await publicClient.getBalance({ address: account });
   if (balance < value + fee) throw new Error("Insufficient balance for amount plus estimated gas.");
   return walletClient.sendTransaction({ account, to: recipient as `0x${string}`, value, gas, chain: walletClient.chain });
 }
