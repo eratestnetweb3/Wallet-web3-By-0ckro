@@ -34,6 +34,7 @@ Alias npm tetap dapat dipakai jika environment mengarahkan `npm` ke package mana
 | `/` | Portfolio overview, balance chart, quick actions, asset dan activity preview |
 | `/assets` | Daftar aset, nilai USD, filter, token import placeholder |
 | `/send` | Form send crypto dengan validasi dasar dan security review step |
+| `/send-token` | Transfer ERC-20 USDC melalui external wallet dengan validasi saldo, gas, dan receipt |
 | `/receive` | Public address dan receive flow |
 | `/activity` | Transaction history dengan filter dan pencarian |
 | `/connect` | DApp connection/session center |
@@ -59,6 +60,8 @@ Connection flow saat ini sudah terhubung ke provider EIP-1193 browser (MetaMask/
 6. Aplikasi memantau pending/success/failed receipt dan menampilkan explorer link.
 
 Jika tidak ada extension, UI tetap dapat dipreview dalam mode demo-safe, tetapi koneksi dan transaksi nyata akan menampilkan error yang aman. Jangan gunakan dana utama saat pengembangan; gunakan Sepolia atau testnet lain.
+
+Versi terbaru juga membaca saldo live untuk token registry USDC dan WETH pada jaringan yang didukung, menyediakan transfer USDC ERC-20 melalui external wallet, serta mencegah duplicate watch-only address. Token production sebaiknya berasal dari token list terverifikasi, bukan input arbitrary tanpa warning.
 
 ## WalletConnect dan data portfolio lengkap
 
