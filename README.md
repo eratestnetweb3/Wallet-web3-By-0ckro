@@ -1,6 +1,6 @@
-# Flux Wallet
+# Zeck Test
 
-A local-first Solana wallet foundation inspired by the public Flux Wallet preview. This repository contains a fresh implementation; it does not copy private Manus source code.
+A local-first Solana wallet foundation inspired by the public Zeck Test preview. This repository contains a fresh implementation; it does not copy private Manus source code.
 
 ## Current scope
 
