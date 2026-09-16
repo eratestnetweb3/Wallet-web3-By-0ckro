@@ -38,44 +38,68 @@ export type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
   on?: (event: string, listener: (...args: unknown[]) => void) => void;
   removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+  isRabby?: boolean;
 };
 
-declare global { interface Window { ethereum?: Eip1193Provider; } }
+type Eip6963Info = { uuid: string; name: string; icon: string; rdns: string };
+type Eip6963Announcement = { info: Eip6963Info; provider: Eip1193Provider };
 
+declare global {
+  interface Window {
+    ethereum?: Eip1193Provider;
+  }
+}
+
+let activeInjectedProvider: Eip1193Provider | null = null;
 let walletConnectProvider: Eip1193Provider | null = null;
 let walletConnectInstance: Awaited<ReturnType<typeof EthereumProvider.init>> | null = null;
 
-export const getInjectedProvider = () => window.ethereum;
+export const getInjectedProvider = () => activeInjectedProvider ?? window.ethereum;
+
+export async function discoverEip6963Providers(timeoutMs = 120): Promise<Eip6963Announcement[]> {
+  if (typeof window === "undefined") return [];
+  const announcements: Eip6963Announcement[] = [];
+  const handle = (event: Event) => {
+    const detail = (event as CustomEvent<Eip6963Announcement>).detail;
+    if (detail?.info?.rdns && detail.provider && !announcements.some((item) => item.info.uuid === detail.info.uuid)) announcements.push(detail);
+  };
+  window.addEventListener("eip6963:announceProvider", handle);
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  await new Promise((resolve) => window.setTimeout(resolve, timeoutMs));
+  window.removeEventListener("eip6963:announceProvider", handle);
+  return announcements;
+}
+
+export async function selectInjectedProvider(): Promise<Eip1193Provider> {
+  const announcements = await discoverEip6963Providers();
+  const rabby = announcements.find((item) => item.info.rdns === "io.rabby" || item.info.name.toLowerCase() === "rabby");
+  activeInjectedProvider = rabby?.provider ?? announcements[0]?.provider ?? window.ethereum ?? null;
+  if (!activeInjectedProvider) throw new Error("No EIP-1193 wallet detected. Install Rabby or another compatible wallet.");
+  return activeInjectedProvider;
+}
+
 export const getChainById = (chainId: number) => supportedChains.find((item) => item.chain.id === chainId) ?? supportedChains[0];
 export const getChainByKey = (key: string) => supportedChains.find((item) => item.id === key) ?? supportedChains[0];
 
-export function createInjectedClients(chain: SupportedChain) {
-  const provider = getInjectedProvider();
-  if (!provider) throw new Error("No EIP-1193 wallet detected. Install MetaMask or Rabby first.");
+export function createInjectedClients(chain: SupportedChain, provider = getInjectedProvider()) {
+  if (!provider) throw new Error("No EIP-1193 wallet detected. Install Rabby or another compatible wallet first.");
   return { walletClient: createWalletClient({ chain: chain.chain, transport: custom(provider) }), publicClient: createPublicClient({ chain: chain.chain, transport: http(chain.rpcUrl) }) };
 }
 
 export function createReadClient(chain: SupportedChain): PublicClient { return createPublicClient({ chain: chain.chain, transport: http(chain.rpcUrl) }); }
 
 export async function connectInjectedWallet(chain: SupportedChain) {
-  const provider = getInjectedProvider();
-  if (!provider) throw new Error("No EIP-1193 wallet detected. Install MetaMask or Rabby first.");
+  const provider = await selectInjectedProvider();
   const walletClient = createWalletClient({ chain: chain.chain, transport: custom(provider) });
   const accounts = await walletClient.requestAddresses();
   const currentChainId = await walletClient.getChainId();
-  return { address: accounts[0], chainId: currentChainId, walletClient };
+  return { address: accounts[0], chainId: currentChainId, walletClient, provider };
 }
 
 export async function connectWalletConnect(chain: SupportedChain) {
   const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined;
   if (!projectId) throw new Error("WalletConnect Project ID is not configured.");
-  walletConnectInstance = await EthereumProvider.init({
-    projectId,
-    chains: [chain.chain.id],
-    optionalChains: supportedChains.map((item) => item.chain.id),
-    showQrModal: true,
-    metadata: { name: "Aegis Wallet", description: "Secure finance workspace", url: window.location.origin, icons: [] },
-  });
+  walletConnectInstance = await EthereumProvider.init({ projectId, chains: [chain.chain.id], optionalChains: supportedChains.map((item) => item.chain.id), showQrModal: true, metadata: { name: "Aegis Wallet", description: "Secure finance workspace", url: window.location.origin, icons: [] } });
   await walletConnectInstance.connect();
   walletConnectProvider = walletConnectInstance as unknown as Eip1193Provider;
   const accounts = await walletConnectProvider.request({ method: "eth_accounts" }) as string[];
@@ -86,7 +110,7 @@ export async function connectWalletConnect(chain: SupportedChain) {
   return { address: accounts[0] as `0x${string}`, chainId, walletClient, provider: walletConnectProvider };
 }
 
-export async function disconnectWalletConnect() { await walletConnectInstance?.disconnect(); walletConnectInstance = null; walletConnectProvider = null; }
+export async function disconnectWalletConnect() { await walletConnectInstance?.disconnect(); walletConnectInstance = null; walletConnectProvider = null; activeInjectedProvider = null; }
 
 export async function switchInjectedChain(chain: SupportedChain) {
   const provider = getInjectedProvider();
